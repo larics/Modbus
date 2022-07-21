@@ -76,6 +76,11 @@ ModbusRequest::ModbusRequest(const std::vector<uint8_t> &inputData, bool CRC) {
       }
       crcIndex = 6 + follow + 1;
       break;
+    case utils::WriteStorageCommand:
+      _registersNumber = 0;
+      _values = {};
+      crcIndex = 3 * 2;
+      break;
     default:
       throw ModbusException(utils::InvalidByteOrder);
     }
@@ -121,6 +126,8 @@ std::string ModbusRequest::toString() const noexcept {
       }
       result.append("}");
     }
+  } else if (functionType() != utils::WriteCustom) {
+    result.append(", data " + std::to_string(_address));
   } else {
     result.append(", starting from address " + std::to_string(_address));
     result.append("\nvalue = " + (*_values.begin()).toString());
@@ -138,7 +145,7 @@ std::vector<uint8_t> ModbusRequest::toRaw() const noexcept {
   result.push_back(reinterpret_cast<const uint8_t *>(&_address)[1]);
   result.push_back(reinterpret_cast<const uint8_t *>(&_address)[0]);
 
-  if (functionType() != utils::WriteSingle) {
+  if (functionType() != utils::WriteSingle && functionType() != utils::WriteCustom) {
     result.push_back(reinterpret_cast<const uint8_t *>(&_registersNumber)[1]);
     result.push_back(reinterpret_cast<const uint8_t *>(&_registersNumber)[0]);
   }

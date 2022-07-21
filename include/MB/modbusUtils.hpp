@@ -126,12 +126,14 @@ enum MBFunctionCode : uint8_t {
   WriteMultipleDiscreteOutputCoils = 0x0F,
   WriteMultipleAnalogOutputHoldingRegisters = 0x10,
 
+  WriteStorageCommand = 0x6A,
+
   // User defined
   Undefined = 0x00
 };
 
 //! Simplified function types
-enum MBFunctionType { Read, WriteSingle, WriteMultiple };
+enum MBFunctionType { Read, WriteSingle, WriteMultiple, WriteCustom};
 
 //! Checks "Function type", according to MBFunctionType
 inline MBFunctionType functionType(const MBFunctionCode code) {
@@ -147,6 +149,8 @@ inline MBFunctionType functionType(const MBFunctionCode code) {
   case WriteMultipleAnalogOutputHoldingRegisters:
   case WriteMultipleDiscreteOutputCoils:
     return WriteMultiple;
+  case WriteStorageCommand:
+    return WriteCustom;
   default:
     throw std::runtime_error("The function code is undefined");
   }
@@ -157,7 +161,7 @@ enum MBFunctionRegisters {
   OutputCoils,
   InputContacts,
   HoldingRegisters,
-  InputRegisters
+  InputRegisters,
 };
 
 //! Get register type based on function code
@@ -174,6 +178,7 @@ inline MBFunctionRegisters functionRegister(const MBFunctionCode code) {
   case WriteMultipleAnalogOutputHoldingRegisters:
     return HoldingRegisters;
   case ReadAnalogInputRegisters:
+  case WriteStorageCommand:
     return InputRegisters;
   default:
     throw std::runtime_error("The function code is undefined");
@@ -199,6 +204,8 @@ inline std::string mbFunctionToStr(MBFunctionCode code) noexcept {
     return "Write to multiple holding registers";
   case WriteMultipleDiscreteOutputCoils:
     return "Write to multiple output coils";
+  case WriteStorageCommand:
+    return "Write gains and offsets for selected calibration";
   default:
     return "Undefined";
   }

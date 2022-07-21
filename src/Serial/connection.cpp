@@ -2,9 +2,10 @@
 // Copyright (c) 2020 Mateusz Mazur aka Mazurel
 // Licensed under: MIT License <http://opensource.org/licenses/MIT>
 
-#include "Serial/connection.hpp"
+#include "MB/Serial/connection.hpp"
 
 using namespace MB::Serial;
+
 
 Connection::Connection(const std::string &path) {
     _fd = open(path.c_str(), O_RDWR | O_SYNC);
@@ -75,13 +76,21 @@ std::tuple<MB::ModbusResponse, std::vector<uint8_t>> Connection::awaitResponse()
     std::vector<uint8_t> data;
     data.reserve(8);
 
+    printf("tu sam rpije response\n");
     MB::ModbusResponse response(0, MB::utils::ReadAnalogInputRegisters);
+    printf("tu sam nakon response\n");
 
     while (true) {
         try {
+            printf("Cekam response\n");
             auto tmpResponse = awaitRawMessage();
+            printf("Ima cak responsa\n");
             data.insert(data.end(), tmpResponse.begin(), tmpResponse.end());
             
+            for (int i=0; i<data.size(); i++) {
+                printf("%x ", data[i]);
+            }
+            printf("\n");
             if (MB::ModbusException::exist(data)) throw MB::ModbusException(data);
 
             response = MB::ModbusResponse::fromRawCRC(data);
@@ -122,6 +131,8 @@ std::tuple<MB::ModbusRequest, std::vector<uint8_t>> Connection::awaitRequest() {
 std::vector<uint8_t> Connection::send(std::vector<uint8_t> data) {
     data.reserve(data.size() + 2);
     const auto crc = utils::calculateCRC(data.begin().base(), data.size());
+
+    printf("CRC: %x %x\n", reinterpret_cast<const uint8_t *>(&crc)[0], reinterpret_cast<const uint8_t *>(&crc)[1]);
 
     data.push_back(reinterpret_cast<const uint8_t *>(&crc)[0]);
     data.push_back(reinterpret_cast<const uint8_t *>(&crc)[1]);

@@ -79,6 +79,9 @@ ModbusResponse::ModbusResponse(std::vector<uint8_t> inputData, bool CRC) {
       _registersNumber = utils::bigEndianConv(&inputData[4]);
       crcIndex = 6;
       break;
+    case utils::WriteStorageCommand:
+      _registersNumber = 0;
+      _address = utils::bigEndianConv(&inputData[2]);
     default:
       throw ModbusException(utils::InvalidByteOrder);
     }
@@ -125,6 +128,8 @@ std::string ModbusResponse::toString() const {
       }
       result.append("}");
     }
+  } else if (functionType() != utils::WriteCustom) {
+    result.append(", data " + std::to_string(_address));
   } else {
     result.append(", starting from address " + std::to_string(_address));
     result.append("\nvalue = " + (*_values.begin()).toString());
@@ -175,7 +180,7 @@ std::vector<uint8_t> ModbusResponse::toRaw() const {
         result.push_back(raw[1]);
         result.push_back(raw[0]);
       }
-    } else {
+    } else if (functionType() != utils::WriteCustom) {
       raw = reinterpret_cast<const uint8_t *>(&_registersNumber);
       result.push_back(raw[1]);
       result.push_back(raw[0]);
