@@ -127,13 +127,14 @@ enum MBFunctionCode : uint8_t {
   WriteMultipleAnalogOutputHoldingRegisters = 0x10,
 
   WriteStorageCommand = 0x6A,
+  WriteStartStreaming = 0x46,
 
   // User defined
   Undefined = 0x00
 };
 
 //! Simplified function types
-enum MBFunctionType { Read, WriteSingle, WriteMultiple, WriteCustom};
+enum MBFunctionType { Read, WriteSingle, WriteMultiple, WriteCustomBytes};
 
 //! Checks "Function type", according to MBFunctionType
 inline MBFunctionType functionType(const MBFunctionCode code) {
@@ -150,7 +151,8 @@ inline MBFunctionType functionType(const MBFunctionCode code) {
   case WriteMultipleDiscreteOutputCoils:
     return WriteMultiple;
   case WriteStorageCommand:
-    return WriteCustom;
+  case WriteStartStreaming:
+    return WriteCustomBytes;
   default:
     throw std::runtime_error("The function code is undefined");
   }
@@ -162,6 +164,7 @@ enum MBFunctionRegisters {
   InputContacts,
   HoldingRegisters,
   InputRegisters,
+  InputDataBytes
 };
 
 //! Get register type based on function code
@@ -179,7 +182,8 @@ inline MBFunctionRegisters functionRegister(const MBFunctionCode code) {
     return HoldingRegisters;
   case ReadAnalogInputRegisters:
   case WriteStorageCommand:
-    return InputRegisters;
+  case WriteStartStreaming:
+    return InputDataBytes;
   default:
     throw std::runtime_error("The function code is undefined");
   }
@@ -205,7 +209,9 @@ inline std::string mbFunctionToStr(MBFunctionCode code) noexcept {
   case WriteMultipleDiscreteOutputCoils:
     return "Write to multiple output coils";
   case WriteStorageCommand:
-    return "Write gains and offsets for selected calibration";
+    return "Unlock storage command";
+  case WriteStartStreaming:
+    return "Start streaming command";
   default:
     return "Undefined";
   }

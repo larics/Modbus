@@ -59,6 +59,7 @@ public:
   [[nodiscard]] std::tuple<MB::ModbusRequest, std::vector<uint8_t>> awaitRequest();
 
   [[nodiscard]] std::vector<uint8_t> awaitRawMessage();
+  [[nodiscard]] std::vector<uint8_t> awaitRawMessage(int buff_size, int timeout);
 
   void enableParity(const bool parity) {
     if (parity)
