@@ -24,6 +24,10 @@ ModbusResponse::ModbusResponse(uint8_t slaveId,
     std::for_each(_values.begin(), _values.end(),
                   [](ModbusCell &cell) -> void { cell.reg(); });
     break;
+  case utils::InputDataBytes:
+    std::for_each(_values.begin(), _values.end(),
+                  [](ModbusCell &cell) -> void { cell.val(); });
+    break;
   }
 }
 
@@ -35,7 +39,7 @@ ModbusResponse::ModbusResponse(std::vector<uint8_t> inputData, bool CRC) {
     _slaveID = inputData[0];
     _functionCode = static_cast<utils::MBFunctionCode>(inputData[1]);
 
-    if (functionType() != utils::Read)
+    if (functionType() != utils::Read && functionType() != utils::WriteCustomBytes)
       _address = utils::bigEndianConv(&inputData[2]);
 
     int crcIndex = -1;
@@ -80,8 +84,15 @@ ModbusResponse::ModbusResponse(std::vector<uint8_t> inputData, bool CRC) {
       crcIndex = 6;
       break;
     case utils::WriteStorageCommand:
-      _registersNumber = 0;
-      _address = utils::bigEndianConv(&inputData[2]);
+    case utils::WriteStartStreaming:
+      if (CRC) _registersNumber = inputData.size()-4;
+      else _registersNumber = inputData.size()-2;
+      _values = std::vector<ModbusCell>(_registersNumber);
+      for (int8_t i = 0; i < _registersNumber; i++) {
+        _values[i].val() = inputData[i + 2];
+      }
+      crcIndex = _registersNumber + 2;
+      break;
     default:
       throw ModbusException(utils::InvalidByteOrder);
     }
@@ -114,7 +125,7 @@ std::string ModbusResponse::toString() const {
   result.append(utils::mbFunctionToStr(_functionCode));
   result.append(", from slave " + std::to_string(_slaveID));
 
-  if (functionType() != utils::WriteSingle) {
+  if (functionType() != utils::WriteSingle && functionType() != utils::WriteCustomBytes) {
     result.append(", starting from address " + std::to_string(_address));
     result.append(", on " + std::to_string(_registersNumber) + " registers");
     if (functionType() == utils::WriteMultiple) {
@@ -128,8 +139,16 @@ std::string ModbusResponse::toString() const {
       }
       result.append("}");
     }
-  } else if (functionType() != utils::WriteCustom) {
-    result.append(", data " + std::to_string(_address));
+  } else if (functionType() == utils::WriteCustomBytes) {
+    result.append("\n values = { ");
+    for (decltype(_values)::size_type i = 0; i < _values.size(); i++) {
+      result.append(_values[i].toString() + " , ");
+      if (i >= 3) {
+          result.append(" , ... ");
+          break;
+        }
+    }
+    result.append("}");
   } else {
     result.append(", starting from address " + std::to_string(_address));
     result.append("\nvalue = " + (*_values.begin()).toString());
@@ -166,6 +185,12 @@ std::vector<uint8_t> ModbusResponse::toRaw() const {
         result.push_back(raw[0]);
       }
     }
+  } else if (functionType() == utils::WriteCustomBytes) {
+    if (_values[0].isVal()) {
+      for (auto &_value : _values) {
+        result.push_back(_value.val());
+      }
+    }
   } else {
     auto raw = reinterpret_cast<const uint8_t *>(&_address);
     result.push_back(raw[1]);
@@ -180,7 +205,7 @@ std::vector<uint8_t> ModbusResponse::toRaw() const {
         result.push_back(raw[1]);
         result.push_back(raw[0]);
       }
-    } else if (functionType() != utils::WriteCustom) {
+    } else if (functionType() != utils::WriteCustomBytes) {
       raw = reinterpret_cast<const uint8_t *>(&_registersNumber);
       result.push_back(raw[1]);
       result.push_back(raw[0]);
